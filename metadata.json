@@ -1,0 +1,6 @@
+{
+  "name": "Kanz (كنز)",
+  "description": "المشروع الوطني الشامل لتوثيق تراث اليمن المادي والحي، وحمايته من الاندثار والسرقة، وإتاحته للعالم كأول متحف افتراضي تفاعلي.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["AI Transcription", "Virtual Tours", "Cultural Archive"]
+}

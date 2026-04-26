@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "artifact": {
+      "title": "Heritage Artifact",
+      "description": "A physical artifact documented by a user (jewelry, weapon, manuscript, etc.)",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the artifact" },
+        "description": { "type": "string", "description": "User description or audio transcription" },
+        "ownerId": { "type": "string", "description": "UID of the user who documented it" },
+        "images": { "type": "array", "description": "List of image URLs" },
+        "audioUrl": { "type": "string", "description": "Narrative audio URL" },
+        "category": { "type": "string", "enum": ["jewelry", "weapons", "manuscripts", "architecture", "food", "clothing", "folklore"] },
+        "location": { "type": "object", "description": "GPS coordinates" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "verified", "archived"] },
+        "isPublic": { "type": "boolean" }
+      },
+      "required": ["title", "ownerId", "category", "createdAt"]
+    },
+    "site": {
+      "title": "Architectural/Historical Site",
+      "description": "Large scale historical sites and architectural landmarks",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "object" },
+        "images": { "type": "array" },
+        "tourUrl": { "type": "string", "description": "Link to 360 virtual tour" },
+        "category": { "type": "string" }
+      },
+      "required": ["title", "location"]
+    },
+    "recording": {
+      "title": "Folklore Recording",
+      "description": "Audio recordings of stories, songs, and cultural knowledge",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "transcript": { "type": "string" },
+        "narrator": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "category": { "type": "string" },
+        "tags": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "audioUrl", "ownerId", "createdAt"]
+    },
+    "user": {
+      "title": "User Profile",
+      "description": "Public profile for heritage contributors",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "role": { "type": "string", "enum": ["contributor", "expert", "admin"] }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "artifacts/{artifactId}": {
+      "schema": "artifact",
+      "description": "Collection of documented artifacts"
+    },
+    "sites/{siteId}": {
+      "schema": "site",
+      "description": "Collection of historical sites"
+    },
+    "recordings/{recordingId}": {
+      "schema": "recording",
+      "description": "Collection of folklore recordings"
+    },
+    "users/{userId}": {
+      "schema": "user",
+      "description": "User profiles"
+    }
+  }
+}
