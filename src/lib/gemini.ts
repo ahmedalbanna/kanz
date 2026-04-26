@@ -11,16 +11,24 @@ export async function transcribeAndAnalyzeHeritage(audioBlobProxy: string, descr
     
     قم بما يلي:
     1. استخرج اسم القطعة أو الحكاية.
-    2. صنفها ضمن الفئات التالية: [حلي، أسلحة، مخطوطات، عمارة، مطبخ، أزياء، تراث شفهي].
+    2. صنفها ضمن الفئات التالية: ['jewelry', 'weapons', 'manuscripts', 'architecture', 'food', 'clothing', 'folklore'].
     3. قدم شرحاً تاريخياً بسيطاً (50-100 كلمة) يبرز أهمية هذا النوع من التراث في اليمن.
-    4. استخرج الكلمات المفتاحية (تاغات).
+    4. استخرج الكلمات المفتاحية (tags).
+    5. حاول استنتاج العمر التقديري (estimatedAge) إن أمكن.
+    6. حاول استنتاج المادة المصنوعة منها (materials) إن أمكن.
+    7. استخرج منطقة المنشأ (originRegion) إن أمكم.
+    8. استخرج اسم المالك (ownerName) إن ذُكر في الوصف، وإلا أعده فارغاً.
     
-    أجب بتنسيق JSON:
+    أجب بتنسيق JSON حصراً:
     {
       "title": "...",
       "category": "...",
       "historicalContext": "...",
-      "tags": ["...", "..."]
+      "tags": ["...", "..."],
+      "estimatedAge": "...",
+      "materials": ["...", "..."],
+      "originRegion": "...",
+      "ownerName": "..."
     }
   `;
 

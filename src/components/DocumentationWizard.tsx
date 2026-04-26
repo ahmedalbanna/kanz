@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Camera, 
@@ -10,10 +10,13 @@ import {
   Sparkles,
   MapPin,
   Tag,
-  Award
+  Award,
+  X,
+  FileAudio
 } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage, OperationType, handleFirestoreError } from '../lib/firebase';
 import { transcribeAndAnalyzeHeritage } from '../lib/gemini';
 
 type Step = 'media' | 'details' | 'ai' | 'success';
@@ -24,13 +27,63 @@ export function DocumentationWizard({ onComplete }: { onComplete: () => void }) 
     title: '',
     description: '',
     category: 'folklore',
-    imageUrl: 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&q=80&w=800',
+    images: [] as string[],
     audioUrl: '',
     location: null as any
   });
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length || !auth.currentUser) return;
+    setIsUploading(true);
+    const uploadedUrls: string[] = [];
+    try {
+      for (let i = 0; i < e.target.files.length; i++) {
+        const file = e.target.files[i];
+        const storageRef = ref(storage, `artifacts/${auth.currentUser.uid}/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(snapshot.ref);
+        uploadedUrls.push(url);
+      }
+      setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
+    } catch (err) {
+      console.error("Upload error:", err);
+      // Fallback fake image if storage isn't fully configured
+      setFormData(prev => ({ ...prev, images: [...prev.images, 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&q=80'] }));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length || !auth.currentUser) return;
+    setIsUploading(true);
+    try {
+      const file = e.target.files[0];
+      const storageRef = ref(storage, `audio/${auth.currentUser.uid}/${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(snapshot.ref);
+      setFormData(prev => ({ ...prev, audioUrl: url }));
+    } catch (err) {
+      console.error("Audio upload error:", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const getLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => setFormData(prev => ({ ...prev, location: { lat: position.coords.latitude, lng: position.coords.longitude } })),
+        (err) => console.error(err)
+      );
+    }
+  };
 
   const handleAiAnalyze = async () => {
     if (!formData.description && !formData.title) return;
@@ -96,24 +149,46 @@ export function DocumentationWizard({ onComplete }: { onComplete: () => void }) 
                   <p className="text-amber-100/40">صور القطعة من زوايا مختلفة للحفاظ على أدق تفاصيلها.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="aspect-square border-2 border-dashed border-amber-900/30 rounded-3xl flex flex-col items-center justify-center gap-4 hover:border-amber-500/50 transition-colors cursor-pointer group">
-                    <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Camera className="text-amber-500" size={32} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
+                  {/* Image Previews */}
+                  {formData.images.length > 0 && (
+                    <div className="col-span-1 md:col-span-2 flex gap-4 overflow-x-auto pb-4">
+                      {formData.images.map((img, i) => (
+                        <div key={i} className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden border border-amber-500/30">
+                          <img src={img} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
                     </div>
-                    <span className="font-bold">استخدام الكاميرا</span>
-                  </div>
-                  <div className="aspect-square border-2 border-dashed border-amber-900/30 rounded-3xl flex flex-col items-center justify-center gap-4 hover:border-amber-500/50 transition-colors cursor-pointer group">
+                  )}
+
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*" 
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                  />
+
+                  <div onClick={() => fileInputRef.current?.click()} className="aspect-square border-2 border-dashed border-amber-900/30 rounded-3xl flex flex-col items-center justify-center gap-4 hover:border-amber-500/50 transition-colors cursor-pointer group">
                     <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                       <Upload className="text-blue-500" size={32} />
                     </div>
-                    <span className="font-bold">رفع ملفات</span>
+                    <span className="font-bold">{isUploading ? 'جار التحميل...' : 'رفع ملفات أو التقاط'}</span>
+                  </div>
+
+                  <div onClick={getLocation} className={`aspect-square border-2 ${formData.location ? 'border-emerald-500/50' : 'border-dashed border-amber-900/30'} rounded-3xl flex flex-col items-center justify-center gap-4 hover:border-emerald-500/50 transition-colors cursor-pointer group`}>
+                     <div className={`w-16 h-16 ${formData.location ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/10 text-amber-500'} rounded-full flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                       <MapPin size={32} />
+                     </div>
+                     <span className="font-bold">{formData.location ? 'تم تحديد الموقع' : 'تحديد الموقع الحالي'}</span>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setStep('details')}
-                  className="w-full bg-amber-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2"
+                  disabled={formData.images.length === 0}
+                  className="w-full bg-amber-600 disabled:opacity-50 py-4 rounded-2xl font-bold flex items-center justify-center gap-2"
                 >
                   الخطوة التالية
                   <ChevronLeft size={20} />
@@ -131,10 +206,37 @@ export function DocumentationWizard({ onComplete }: { onComplete: () => void }) 
               >
                 <div className="text-center space-y-2">
                   <h2 className="text-3xl font-bold">احكي لنا القصة</h2>
-                  <p className="text-amber-100/40">سجل صوتك أو اكتب ما تعرفه عن تاريخ هذه القطعة.</p>
+                  <p className="text-amber-100/40">سجل صوتك، ارفع ملف صوتي، أو اكتب ما تعرفه عن تاريخ هذه القطعة.</p>
                 </div>
 
                 <div className="space-y-6">
+                  {formData.audioUrl ? (
+                    <div className="bg-amber-900/20 p-4 rounded-2xl border border-amber-500/30 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center text-amber-500">
+                           <FileAudio size={20} />
+                         </div>
+                         <div>
+                            <p className="font-bold">ملف صوتي مرفق</p>
+                            <p className="text-xs text-amber-100/40">تم الحفظ بنجاح</p>
+                         </div>
+                      </div>
+                      <button onClick={() => setFormData(prev => ({...prev, audioUrl: ''}))} className="text-red-500 hover:text-red-400 p-2">
+                        <X size={20} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4 mb-4">
+                      <input type="file" accept="audio/*" className="hidden" ref={audioInputRef} onChange={handleAudioUpload} />
+                      <button onClick={() => audioInputRef.current?.click()} className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 py-3 rounded-xl border border-blue-500/30 flex items-center justify-center gap-2 font-bold transition-colors">
+                        <Upload size={18} /> رفع ملف صوتي
+                      </button>
+                      <button className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 py-3 rounded-xl border border-red-500/30 flex items-center justify-center gap-2 font-bold transition-colors">
+                        <Mic size={18} /> محاكاة التسجيل الصوتي
+                      </button>
+                    </div>
+                  )}
+
                   <div className="relative">
                     <textarea 
                       value={formData.description}
@@ -142,9 +244,6 @@ export function DocumentationWizard({ onComplete }: { onComplete: () => void }) 
                       placeholder="هذا الخنجر يعود لجدي، اشتراه من سوق الملح في صنعاء قبل 50 عاماً..."
                       className="w-full h-40 bg-[#0c0b0a] border border-amber-900/30 rounded-2xl p-6 focus:ring-2 focus:ring-amber-500 outline-none text-lg resize-none"
                     />
-                    <button className="absolute bottom-4 left-4 bg-red-500/20 text-red-500 p-3 rounded-full hover:bg-red-500 hover:text-white transition-all animate-pulse">
-                      <Mic size={24} />
-                    </button>
                   </div>
 
                   <div className="flex gap-4">

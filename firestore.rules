@@ -11,6 +11,18 @@ service cloud.firestore {
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function verifiedEmail() { return request.auth.token.email_verified == true; }
+    
+    function getUserRole() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ?
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role : 'contributor';
+    }
+    
+    function isExpert() {
+      return isSignedIn() && (getUserRole() == 'expert' || getUserRole() == 'admin');
+    }
+    function isAdmin() {
+      return isSignedIn() && getUserRole() == 'admin';
+    }
 
     function isValidArtifact(data) {
       return data.title is string && data.title.size() <= 200 &&
@@ -32,12 +44,13 @@ service cloud.firestore {
     }
 
     match /artifacts/{artifactId} {
-      allow read: if resource.data.isPublic == true || isOwner(resource.data.ownerId);
+      allow read: if resource.data.isPublic == true || isOwner(resource.data.ownerId) || isExpert();
       allow create: if isSignedIn() && isValidArtifact(request.resource.data);
-      allow update: if isOwner(resource.data.ownerId) && 
+      allow update: if (isOwner(resource.data.ownerId) && 
                       request.resource.data.ownerId == resource.data.ownerId &&
-                      request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isOwner(resource.data.ownerId);
+                      request.resource.data.createdAt == resource.data.createdAt) || 
+                      (isExpert() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'tags', 'materials', 'estimatedAge', 'originRegion', 'historicalContext']));
+      allow delete: if isOwner(resource.data.ownerId) || isAdmin();
     }
 
     match /recordings/{recordingId} {

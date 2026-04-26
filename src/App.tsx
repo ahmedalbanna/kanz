@@ -13,22 +13,29 @@ import {
   Menu,
   X,
   History,
-  Languages
+  Languages,
+  ShieldAlert
 } from 'lucide-react';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 
-// Components (defined inline for simplicity or imported if large)
+// Components
 import { Hero } from './components/Hero';
 import { CategoryGrid } from './components/CategoryGrid';
 import { FeaturedArtifacts } from './components/FeaturedArtifacts';
 import { DocumentationWizard } from './components/DocumentationWizard';
 import { VirtualTours } from './components/VirtualTours';
+import { UserProfile } from './components/UserProfile';
+import { ExpertPanel } from './components/ExpertPanel';
+import { MapExplorer } from './components/MapExplorer';
+import { ArtifactModal } from './components/ArtifactModal';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'museum' | 'document' | 'tours'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'museum' | 'document' | 'tours' | 'map' | 'profile' | 'expert'>('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedArtifact, setSelectedArtifact] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -46,7 +53,15 @@ export default function App() {
     }
   };
 
-  const logout = () => signOut(auth);
+  const logout = () => {
+    signOut(auth);
+    setActiveTab('home');
+  };
+
+  const openArtifactModal = (artifact: any) => {
+    setSelectedArtifact(artifact);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-[#0f0e0c] text-[#e5e1d8] font-sans selection:bg-amber-500/30" dir="rtl">
@@ -61,10 +76,11 @@ export default function App() {
           </div>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium">
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
             <button onClick={() => setActiveTab('home')} className={`hover:text-amber-500 transition-colors ${activeTab === 'home' ? 'text-amber-500' : ''}`}>الرئيسية</button>
             <button onClick={() => setActiveTab('museum')} className={`hover:text-amber-500 transition-colors ${activeTab === 'museum' ? 'text-amber-500' : ''}`}>المتحف</button>
             <button onClick={() => setActiveTab('tours')} className={`hover:text-amber-500 transition-colors ${activeTab === 'tours' ? 'text-amber-500' : ''}`}>جولات افتراضية</button>
+            <button onClick={() => setActiveTab('map')} className={`hover:text-amber-500 transition-colors flex items-center gap-1 ${activeTab === 'map' ? 'text-amber-500' : ''}`}><Map size={16}/> خريطة الكنوز</button>
           </div>
 
           <div className="flex items-center gap-4">
@@ -72,12 +88,18 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setActiveTab('document')}
-                  className="hidden md:flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-full transition-all text-sm"
+                  className="hidden md:flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-full transition-all text-sm shadow-xl shadow-amber-900/20"
                 >
                   <PlusCircle size={18} />
                   وثق كنزك
                 </button>
-                <img src={user.photoURL} className="w-9 h-9 rounded-full border border-amber-500/30" alt={user.displayName} />
+                <div className="relative group cursor-pointer" onClick={() => setActiveTab('profile')}>
+                  <img src={user.photoURL} className="w-9 h-9 rounded-full border-2 border-amber-500/30 group-hover:border-amber-500 transition-colors" alt={user.displayName} />
+                  {/* Small popup on hover config maybe? */}
+                </div>
+                <button onClick={() => setActiveTab('expert')} className="hidden lg:block text-amber-100/40 hover:text-amber-500" title="لوحة الخبراء">
+                   <ShieldAlert size={18}/>
+                </button>
                 <button onClick={logout} className="text-xs opacity-50 hover:opacity-100">خروج</button>
               </div>
             ) : (
@@ -105,10 +127,17 @@ export default function App() {
             exit={{ opacity: 0, y: -20 }}
             className="fixed inset-0 z-40 bg-[#0f0e0c] pt-24 px-6 flex flex-col gap-6"
           >
-            <button onClick={() => {setActiveTab('home'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4">الرئيسية</button>
-            <button onClick={() => {setActiveTab('museum'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4">المتحف</button>
-            <button onClick={() => {setActiveTab('tours'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4">جولات افتراضية</button>
-            <button onClick={() => {setActiveTab('document'); setIsMenuOpen(false)}} className="text-2xl text-amber-500">وثق كنزك</button>
+            <button onClick={() => {setActiveTab('home'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4 text-right">الرئيسية</button>
+            <button onClick={() => {setActiveTab('museum'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4 text-right">المتحف</button>
+            <button onClick={() => {setActiveTab('tours'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4 text-right">جولات افتراضية</button>
+            <button onClick={() => {setActiveTab('map'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4 text-right flex items-center gap-2"><Map/> خريطة الكنوز</button>
+            {user && (
+              <>
+                <button onClick={() => {setActiveTab('profile'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4 text-right">ملفي الشخصي</button>
+                <button onClick={() => {setActiveTab('expert'); setIsMenuOpen(false)}} className="text-2xl border-b border-amber-900/20 pb-4 text-right">لوحة الخبراء</button>
+              </>
+            )}
+            <button onClick={() => {setActiveTab('document'); setIsMenuOpen(false)}} className="text-2xl text-amber-500 text-right mt-4">وثق كنزك</button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -127,10 +156,11 @@ export default function App() {
               <>
                 <Hero onDocumentClick={() => setActiveTab('document')} />
                 <CategoryGrid />
-                <FeaturedArtifacts />
+                <FeaturedArtifacts onArtifactClick={openArtifactModal} />
                 <div className="max-w-7xl mx-auto px-4 mt-20">
-                  <div className="bg-amber-900/10 border border-amber-500/20 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
-                    <div className="space-y-4 max-w-xl text-center md:text-right">
+                  <div className="bg-amber-900/10 border border-amber-500/20 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl"></div>
+                    <div className="space-y-4 max-w-xl text-center md:text-right relative z-10">
                       <h2 className="text-3xl font-bold">اليمن متحف مفتوح... وأنت حارسه</h2>
                       <p className="text-amber-100/60 leading-relaxed">
                         كل قطعة أثرية في بيتك، وكل حكاية سمعتها من جدك، هي كنز مهدد بالضياع. ساهم في توثيقها رقمياً لحمايتها من الاندثار والسرقة.
@@ -138,7 +168,7 @@ export default function App() {
                     </div>
                     <button 
                       onClick={() => setActiveTab('document')}
-                      className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-full font-bold transition-all shadow-xl shadow-amber-900/20 whitespace-nowrap"
+                      className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-full font-bold transition-all shadow-xl shadow-amber-900/20 whitespace-nowrap relative z-10"
                     >
                       ابدأ التوثيق الآن
                     </button>
@@ -147,12 +177,28 @@ export default function App() {
               </>
             )}
 
-            {activeTab === 'museum' && <FeaturedArtifacts fullView />}
+            {activeTab === 'museum' && <FeaturedArtifacts fullView onArtifactClick={openArtifactModal} />}
             {activeTab === 'document' && <DocumentationWizard onComplete={() => setActiveTab('museum')} />}
             {activeTab === 'tours' && <VirtualTours />}
+            {activeTab === 'map' && (
+               <div className="max-w-7xl mx-auto px-4 py-8">
+                 <div className="mb-8">
+                    <h2 className="text-3xl font-bold flex items-center gap-3">
+                      <Map size={32} className="text-amber-500"/> خريطة الكنوز الموثقة
+                    </h2>
+                    <p className="text-amber-100/40">استكشف القطع والمعالم الأثرية جغرافياً (تظهر فقط الكنوز المعتمدة من الخبراء).</p>
+                 </div>
+                 <MapExplorer onArtifactSelect={openArtifactModal} />
+               </div>
+            )}
+            {activeTab === 'profile' && <UserProfile />}
+            {activeTab === 'expert' && <ExpertPanel />}
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Artifact Modal */}
+      <ArtifactModal artifact={selectedArtifact} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
       {/* Footer */}
       <footer className="border-t border-amber-900/20 py-12 mt-20 bg-[#0c0b0a]">

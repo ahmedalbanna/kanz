@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { collection, query, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, getDocs, where } from 'firebase/firestore';
 import { db, OperationType, handleFirestoreError } from '../lib/firebase';
 import { Eye, Clock, User, Award } from 'lucide-react';
 
-export function FeaturedArtifacts({ fullView = false }: { fullView?: boolean }) {
+export function FeaturedArtifacts({ fullView = false, onArtifactClick }: { fullView?: boolean, onArtifactClick?: (artifact: any) => void }) {
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Only fetch verified artifacts for the public museum
     const q = query(
-      collection(db, 'artifacts'), 
+      collection(db, 'artifacts'),
+      where('status', '==', 'verified'),
       orderBy('createdAt', 'desc'), 
       limit(fullView ? 50 : 6)
     );
@@ -21,6 +23,7 @@ export function FeaturedArtifacts({ fullView = false }: { fullView?: boolean }) 
       setLoading(false);
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, 'artifacts');
+      setLoading(false); // don't infinite spin
     });
 
     return unsub;
@@ -79,19 +82,21 @@ export function FeaturedArtifacts({ fullView = false }: { fullView?: boolean }) 
                 </div>
               </div>
 
-              <div className="p-4 space-y-3">
-                <h3 className="text-xl font-bold group-hover:text-amber-500 transition-colors line-clamp-1">{art.title}</h3>
-                <p className="text-sm text-amber-100/40 line-clamp-2 leading-relaxed">
-                  {art.description}
-                </p>
-                <div className="pt-4 border-t border-amber-900/10 flex items-center justify-between">
+              <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-xl font-bold group-hover:text-amber-500 transition-colors line-clamp-1">{art.title}</h3>
+                  <p className="text-sm text-amber-100/40 line-clamp-2 leading-relaxed">
+                    {art.description}
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-amber-900/10 flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center">
                       <User size={14} />
                     </div>
                     <span className="text-xs text-amber-100/40">موثق بواسطة {art.ownerName || 'مواطن يمني'}</span>
                   </div>
-                  <button className="text-amber-500 hover:underline text-xs font-bold">التفاصيل</button>
+                  <button onClick={() => onArtifactClick?.(art)} className="text-amber-500 hover:underline text-xs font-bold shrink-0">التفاصيل</button>
                 </div>
               </div>
             </motion.div>
