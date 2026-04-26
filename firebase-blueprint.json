@@ -13,10 +13,25 @@
         "category": { "type": "string", "enum": ["jewelry", "weapons", "manuscripts", "architecture", "food", "clothing", "folklore"] },
         "location": { "type": "object", "description": "GPS coordinates" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["pending", "verified", "archived"] },
+        "status": { "type": "string", "enum": ["pending", "verified", "archived", "flagged"] },
+        "flaggedReason": { "type": "string" },
         "isPublic": { "type": "boolean" }
       },
       "required": ["title", "ownerId", "category", "createdAt"]
+    },
+    "notification": {
+      "title": "System Notification",
+      "description": "Notifications for users about their heritage contributions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["approval", "flag", "system"] },
+        "artifactId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["userId", "message", "createdAt"]
     },
     "site": {
       "title": "Architectural/Historical Site",
@@ -80,6 +95,10 @@
     "users/{userId}": {
       "schema": "user",
       "description": "User profiles"
+    },
+    "notifications/{notificationId}": {
+      "schema": "notification",
+      "description": "User notifications"
     }
   }
 }
